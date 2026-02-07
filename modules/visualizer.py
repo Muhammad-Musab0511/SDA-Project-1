@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 def region_bar_chart(filtered_df, region, year):
 
     plt.figure()
-    plt.bar(filtered_df["Country Name"], filtered_df["Value"])
+    plt.bar(filtered_df["Country Name"], filtered_df["Value"], label="GDP")
     plt.title(f"GDP of {region} ({year})")
     plt.xlabel("Country")
     plt.ylabel("GDP")
+    plt.legend()
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.show()
@@ -15,8 +16,9 @@ def region_bar_chart(filtered_df, region, year):
 def region_pie_chart(filtered_df, region, year):
 
     plt.figure()
-    plt.pie(filtered_df["Value"], labels=filtered_df["Country Name"], autopct="%1.1f%%")
+    plt.pie(filtered_df["Value"], autopct="%1.1f%%")
     plt.title(f"GDP Distribution of {region} ({year})")
+    plt.legend(filtered_df["Country Name"], loc="best", bbox_to_anchor=(1, 0, 0.5, 1))
     plt.show()
 
 
