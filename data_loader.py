@@ -4,6 +4,20 @@ def load_dataset(path):
     try:
         df = pd.read_csv(path)
 
+        # Remove unused columns
+        df = df.drop(columns=["Country Code", "Indicator Name", "Indicator Code"])
+
+        # Rename Continent -> Region (project requirement)
+        df = df.rename(columns={"Continent": "Region"})
+
+        # Convert wide years into rows
+        df = df.melt(
+            id_vars=["Country Name", "Region"],
+            var_name="Year",
+            value_name="Value"
+        )
+
+        # Clean data
         df = df.dropna()
 
         df["Year"] = df["Year"].astype(int)
@@ -17,22 +31,3 @@ def load_dataset(path):
         raise Exception(f"Data loading error: {e}")
 
 
-def clean_data(df):
-    try:
-        # Drop rows with missing critical values
-        df = df.dropna(subset=["Country name", "Region", "Year", "Value"])
-
-        # Convert data types safely
-        df["Year"] = df["Year"].astype(int)
-        df["Value"] = df["Value"].astype(float)
-
-        # Strip whitespace from string columns
-        string_columns = ["Country name", "Region"]
-        df[string_columns] = df[string_columns].apply(
-            lambda col: col.str.strip()
-        )
-
-        return df
-
-    except Exception as e:
-        raise Exception(f"Data cleaning error: {e}")
