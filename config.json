@@ -1,6 +1,16 @@
 {
-  "region": "Asia",
-  "year": 2020,
-  "operation": "average",
-  "output": "dashboard"
+  "input": {
+    "driver": "json",
+    "path": "gdp_with_continent_filled.json"
+  },
+  "output": {
+    "drivers": ["console", "chart"]
+  },
+  "analysis": {
+    "region": "Asia",
+    "year": 2020,
+    "start_year": 2010,
+    "end_year": 2022,
+    "decline_years": 5
+  }
 }
