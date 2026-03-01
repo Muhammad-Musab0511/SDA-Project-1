@@ -1,0 +1,69 @@
+@startuml
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Main Module" {
+  class Bootstrap {
+    +bootstrap(config_file: str): None
+    -_load_config(path): dict
+    -_validate_config(config): None
+  }
+  class RegistryFactory {
+    +INPUT_DRIVERS: dict
+    +OUTPUT_DRIVERS: dict
+  }
+}
+
+package "Core Module" {
+  interface DataSink <<Protocol>> {
+    +write(records: dict): None
+  }
+  interface PipelineService <<Protocol>> {
+    +execute(raw_data: list): None
+  }
+  class TransformationEngine {
+    -sink: DataSink
+    -settings: dict
+    +execute(raw_data: list): None
+    -_normalize(df)
+    -_build_report(df)
+  }
+}
+
+package "Input Module" {
+  class CSVReader {
+    +run(): None
+  }
+  class JSONReader {
+    +run(): None
+  }
+}
+
+package "Output Module" {
+  class ConsoleWriter {
+    +write(records: dict): None
+  }
+  class GraphicsChartWriter {
+    +write(records: dict): None
+  }
+}
+
+Bootstrap --> RegistryFactory : uses
+Bootstrap --> TransformationEngine : injects sink + settings
+Bootstrap --> CSVReader : builds from registry
+Bootstrap --> JSONReader : builds from registry
+
+CSVReader ..> PipelineService : depends on
+JSONReader ..> PipelineService : depends on
+TransformationEngine ..|> PipelineService
+
+TransformationEngine --> DataSink : outbound abstraction
+ConsoleWriter ..|> DataSink
+GraphicsChartWriter ..|> DataSink
+
+note right of TransformationEngine
+Core owns protocols and business rules.
+All concrete IO dependencies point inward to Core.
+end note
+
+@enduml
