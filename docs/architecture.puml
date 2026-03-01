@@ -1,4 +1,4 @@
-@startuml
+@startuml name
 skinparam linetype ortho
 skinparam packageStyle rectangle
 
