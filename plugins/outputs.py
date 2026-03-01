@@ -89,10 +89,33 @@ class ConsoleWriter(DataSink):
 class GraphicsChartWriter(DataSink):
     def write(self, records: dict[str, Any]) -> None:
         self._plot_top_bottom(records)
+        self._plot_country_growth_rates(records)
         self._plot_global_trend(records)
         self._plot_average_by_continent(records)
         self._plot_continent_contribution(records)
         plt.show()
+
+    def _plot_country_growth_rates(self, records: dict[str, Any]) -> None:
+        rows = records["country_growth_rates"]
+        if not rows:
+            return
+
+        context = records.get("context", {})
+        region = context.get("region", "Selected Region")
+        start_year = context.get("start_year")
+        end_year = context.get("end_year")
+
+        countries = list(map(lambda item: item["country"], rows))
+        growth_rates = list(map(lambda item: item["growth_rate_pct"], rows))
+        colors = list(map(lambda value: "green" if value >= 0 else "red", growth_rates))
+
+        plt.figure(figsize=(12, max(5, len(countries) * 0.25)))
+        plt.barh(countries, growth_rates, color=colors)
+        plt.axvline(0, color="black", linewidth=1)
+        plt.title(f"GDP Growth Rate by Country ({region}, {start_year}-{end_year})")
+        plt.xlabel("Growth Rate (%)")
+        plt.ylabel("Country")
+        plt.tight_layout()
 
     def _plot_top_bottom(self, records: dict[str, Any]) -> None:
         top_rows = records["top_10_countries"]
