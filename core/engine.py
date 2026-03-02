@@ -121,7 +121,7 @@ class TransformationEngine:
 
     def _avg_gdp_by_continent(self, df: pd.DataFrame, start_year: int, end_year: int) -> list[dict[str, Any]]:
         in_range = df[(df["Year"] >= start_year) & (df["Year"] <= end_year)]
-        grouped = in_range.groupby("Region", as_index=False)["Value"].mean().sort_values("Value", ascending=False)
+        grouped = in_range.groupby("Region", as_index=False)["Value"].mean().reset_index().sort_values("Value", ascending=False)
         return list(
             map(
                 lambda row: {
@@ -134,7 +134,7 @@ class TransformationEngine:
 
     def _global_gdp_trend(self, df: pd.DataFrame, start_year: int, end_year: int) -> list[dict[str, Any]]:
         in_range = df[(df["Year"] >= start_year) & (df["Year"] <= end_year)]
-        grouped = in_range.groupby("Year", as_index=False)["Value"].sum().sort_values("Year")
+        grouped = in_range.groupby("Year", as_index=False).agg(Value=("Value", "sum")).sort_values(by="Year")
         return list(
             map(
                 lambda row: {
