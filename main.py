@@ -73,7 +73,7 @@ def bootstrap(config_file: str = "config.json") -> None:
         raise TypeError(f"Output drivers do not satisfy DataSink protocol: {sink_names}")
 
     sink = sink_instances[0] if len(sink_instances) == 1 else MultiSink(sink_instances)
-
+    # dependency injection of the sink into the transformation engine
     engine = TransformationEngine(sink=sink, settings=config["analysis"])
 
     input_driver_name = config["input"]["driver"]
