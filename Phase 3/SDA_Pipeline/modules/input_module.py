@@ -1,17 +1,9 @@
-"""
-input_module.py:
-The Input Module is completely domain-agnostic.
-Reads an arbitrary CSV, maps column names to internal generic names,
-casts values per the schema in config.json, and feeds the raw_queue.
-Backpressure is automatic: put() blocks when the bounded queue is full.
-"""
 
 import csv
 import time
 
 
 class InputModule:
-    """Producer process->reads a CSV file and feeds raw_queue."""
     def __init__(self, config: dict, raw_queue):
         self._config = config
         self._raw_queue = raw_queue
@@ -39,7 +31,6 @@ class InputModule:
         return value
 
     def run(self) -> None:
-        """Read rows, map to generic packets, push to raw_queue."""
         sequence = 0
         with open(self._dataset_path, newline="", encoding="utf-8") as fh:
             reader = csv.DictReader(fh)
