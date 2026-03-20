@@ -1,0 +1,138 @@
+@startuml class_diagram
+skinparam backgroundColor #0d1117
+skinparam classBackgroundColor #161b22
+skinparam classBorderColor #30363d
+skinparam classArrowColor #58a6ff
+skinparam classFontColor #e6edf3
+skinparam noteBackgroundColor #21262d
+skinparam noteBorderColor #30363d
+skinparam noteFontColor #e6edf3
+skinparam packageBackgroundColor #0d1117
+skinparam packageBorderColor #21262d
+skinparam stereotypeFontColor #8b949e
+
+title Generic Concurrent Real-Time Pipeline — Class Diagram
+
+interface IObserver <<interface>> {
+    + update(state: dict): void
+}
+
+class PipelineTelemetry <<Subject>> {
+    - _raw_queue: Queue
+    - _intermediate_queue: Queue
+    - _processed_queue: Queue
+    - _max_size: int
+    - _observers: list
+    --
+    + subscribe(observer: IObserver): void
+    + unsubscribe(observer: IObserver): void
+    + poll_and_notify(): dict
+    - _safe_qsize(q: Queue): int
+}
+
+class InputModule <<Producer>> {
+    - _config: dict
+    - _raw_queue: Queue
+    - _delay: float
+    - _parallelism: int
+    - _dataset_path: str
+    - _column_map: dict
+    --
+    + run(): void
+    - _cast(value: str, data_type: str): Any
+}
+
+class CoreWorker <<ScatterWorker>> {
+    - _raw_queue: Queue
+    - _intermediate_queue: Queue
+    - _worker_id: int
+    - _secret_key: str
+    - _iterations: int
+    - _value_field: str
+    - _signature_field: str
+    --
+    + run(): void
+}
+
+note right of CoreWorker
+  Scatter-Gather Pattern:
+  N workers run in parallel,
+  each independently verifying
+  one packet at a time.
+end note
+
+class "«pure function»\nverify_signature" as VerifyFn <<FunctionalCore>> {
+    + verify_signature(metric_value: float,\n  security_hash: str,\n  secret_key: str,\n  iterations: int): bool
+    ..
+    Algorithm: PBKDF2-HMAC-SHA256
+    Stateless / no side effects
+}
+
+class "«pure function»\ncompute_running_average" as AvgFn <<FunctionalCore>> {
+    + compute_running_average(window: list,\n  new_value: float,\n  window_size: int): tuple[list, float]
+    ..
+    Returns new_window + average
+    Input list never mutated
+}
+
+class Aggregator <<GatherNode>> {
+    - _intermediate_queue: Queue
+    - _processed_queue: Queue
+    - _num_workers: int
+    - _window_size: int
+    - _entity_field: str
+    - _value_field: str
+    - _computed_field: str
+    --
+    + run(): void
+    - _emit(packet: dict, windows: dict): int
+}
+
+note right of Aggregator
+  Functional Core, Imperative Shell:
+  Shell manages mutable state
+  (windows dict, reseq buffer).
+  Core is the pure AvgFn call.
+end note
+
+class Dashboard <<Observer>> {
+    - _config: dict
+    - _processed_queue: Queue
+    - _telemetry: PipelineTelemetry
+    - _x_vals: dict[str, deque]
+    - _y_vals: dict[str, deque]
+    - _avg_vals: dict[str, deque]
+    - _telem_state: dict
+    - _finished: bool
+    --
+    + update(state: dict): void
+    + run(): void
+    - _animate(frame): void
+    - _draw_telemetry(): void
+    - _draw_line_charts(): void
+    - _queue_color(size, max_s): str
+}
+
+class "main.py" as Main <<Orchestrator>> {
+    + main(): void
+}
+
+Dashboard ..|> IObserver : implements
+PipelineTelemetry o-- "0..*" IObserver : notifies >
+
+Main ..> InputModule : creates & starts
+Main ..> CoreWorker : creates N & starts
+Main ..> Aggregator : creates & starts
+Main ..> Dashboard : creates & runs
+Main ..> PipelineTelemetry : creates
+
+Dashboard --> PipelineTelemetry : subscribes to
+
+CoreWorker ..> VerifyFn : calls (stateless) >
+Aggregator ..> AvgFn : calls (functional core) >
+
+InputModule --> CoreWorker : raw_queue >>
+CoreWorker --> Aggregator : intermediate_queue >>
+Aggregator --> Dashboard : processed_queue >>
+
+@enduml

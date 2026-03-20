@@ -1,0 +1,92 @@
+@startuml sequence_diagram
+skinparam backgroundColor #0d1117
+skinparam sequenceArrowColor #58a6ff
+skinparam sequenceParticipantBackgroundColor #161b22
+skinparam sequenceParticipantBorderColor #30363d
+skinparam sequenceFontColor #e6edf3
+skinparam noteBackgroundColor #21262d
+skinparam noteBorderColor #30363d
+skinparam noteFontColor #e6edf3
+
+title Generic Concurrent Real-Time Pipeline — Sequence Diagram
+
+actor User
+participant "main.py\n(Orchestrator)" as Main
+participant "PipelineTelemetry\n(Subject)" as Telem
+participant "InputModule\n(Process)" as Input
+participant "CoreWorker × N\n(Process × N)" as Core
+participant "Aggregator\n(Process)" as Agg
+participant "Dashboard\n(Main Thread / Observer)" as Dash
+
+User -> Main : python main.py
+
+group Initialisation
+    Main -> Main : load config.json
+    Main -> Main : create raw_queue (bounded)
+    Main -> Main : create intermediate_queue (bounded)
+    Main -> Main : create processed_queue (bounded)
+    Main -> Telem : new PipelineTelemetry(raw, intermediate, processed, max_size)
+    Main -> Input : Process(InputModule.run).start()
+    Main -> Core  : Process(CoreWorker.run) × N .start()
+    Main -> Agg   : Process(Aggregator.run).start()
+    Main -> Dash  : new Dashboard(config, processed_queue, telemetry)
+    Dash -> Telem : subscribe(self)
+    Main -> Dash  : dashboard.run()   [blocks main thread]
+end
+
+group Steady-state: Data Streaming (repeated for every CSV row)
+
+    Input -> Input : read row, map columns via schema
+    note over Input
+        Packet: { _sequence, entity_name,
+                  time_period, metric_value,
+                  security_hash }
+    end note
+
+    alt raw_queue FULL → backpressure
+        Input -> Input : raw_queue.put() BLOCKS
+    else queue has space
+        Input -> Core : raw_queue.put(packet)
+    end
+    Input -> Input : sleep(input_delay_seconds)
+
+    Core -> Core : raw_queue.get(packet)
+    Core -> Core : compute PBKDF2-HMAC-SHA256\n[pure verify_signature()]
+    alt Signature INVALID
+        Core -> Core : drop packet silently
+    else Signature VALID
+        Core -> Agg : intermediate_queue.put(packet)
+    end
+
+    Agg -> Agg : intermediate_queue.get(packet)
+    alt OUT OF ORDER
+        Agg -> Agg : buffer in reseq_buffer[seq]
+    else IN ORDER
+        Agg -> Agg : compute_running_average()\n[pure functional core]
+        Agg -> Agg : attach configured output metric
+        Agg -> Dash : processed_queue.put(output_packet)
+    end
+
+    Dash -> Dash : FuncAnimation tick (200 ms)
+    Dash -> Dash : drain processed_queue (non-blocking)
+    Dash -> Telem : poll_and_notify()
+    Telem -> Telem : qsize() all three queues
+    Telem -> Dash  : update(state)
+    Dash -> Dash : _draw_telemetry() — colour-coded bars
+    Dash -> Dash : _draw_line_charts() — live values + avg
+
+end
+
+group Shutdown
+    Input -> Core : raw_queue.put(None) × N
+    Core  -> Agg  : intermediate_queue.put(None) per worker
+    Agg   -> Agg  : flush reseq_buffer
+    Agg   -> Dash : processed_queue.put(None)
+    Dash  -> Dash : set _finished = True\ndisplay "Pipeline complete"
+    User  -> Dash : close window
+    Dash  -> Main : plt.show() returns
+    Main  -> Main : p.join() all processes
+    Main  -> User : exit
+end
+
+@enduml
