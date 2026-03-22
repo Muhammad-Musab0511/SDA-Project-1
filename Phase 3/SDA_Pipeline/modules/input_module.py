@@ -13,7 +13,7 @@ class InputModule:
         self._parallelism: int = dynamics["core_parallelism"]
         self._dataset_path: str = config["dataset_path"]
 
-        #Build schema map: source_name -> (internal_mapping, data_type)
+        # Build a quick lookup so CSV column names map to internal field names and types.
         self._column_map: dict = {}
         for col in config["schema_mapping"]["columns"]:
             self._column_map[col["source_name"]] = (
@@ -40,10 +40,10 @@ class InputModule:
                     if source_name in self._column_map:
                         internal_name, data_type = self._column_map[source_name]
                         packet[internal_name] = self._cast(raw_value, data_type)
-                self._raw_queue.put(packet)   # blocks on backpressure
+                self._raw_queue.put(packet)
                 sequence += 1
                 time.sleep(self._delay)
 
-        #One sentinel per CoreWorker signals stream exhaustion
+        # Send one sentinel per worker so each worker can shut down cleanly.
         for _ in range(self._parallelism):
             self._raw_queue.put(None)

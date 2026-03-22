@@ -57,11 +57,9 @@ class Dashboard:
         self._total_received = 0
         self._build_figure()
 
-    #Observer interface 
     def update(self, state: dict) -> None:
         self._telem_state = state
 
-    #figure setup 
     def _build_figure(self) -> None:
         plt.style.use("dark_background")
         self._fig = plt.figure(figsize=(15, 9), facecolor=_BG_DARK)
@@ -84,7 +82,6 @@ class Dashboard:
             color=_FG_TEXT, fontsize=13, fontweight="bold", y=0.98,
         )
 
-    #animation callback
     def _animate(self, _frame) -> None:
         while True:
             try:
@@ -114,7 +111,6 @@ class Dashboard:
                 f"✅  Pipeline complete — {self._total_received} packets processed",
                 color=_GREEN, fontsize=10)
 
-    #Panel renderers
     def _queue_color(self, size, max_s) -> str:
         if max_s == 0:
             return _GREEN
@@ -214,7 +210,6 @@ class Dashboard:
                            facecolor=_BG_PANEL, edgecolor=_GRID_COLOR,
                            labelcolor=_FG_TEXT)
 
-    #entry point
     def run(self) -> None:
         self._anim = animation.FuncAnimation(
             self._fig, self._animate, interval=200, cache_frame_data=False)
